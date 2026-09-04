@@ -1,17 +1,17 @@
-package com.senac.estoque.service;
+    package com.senac.estoque.service;
 
-import com.senac.estoque.model.Movimentacao;
-import com.senac.estoque.model.Produto;
-import com.senac.estoque.model.TipoMovimentacao;
-import com.senac.estoque.repository.MovimentacaoRepository;
-import com.senac.estoque.repository.ProdutoRepository;
-import org.springframework.stereotype.Service;
+    import com.senac.estoque.model.Movimentacao;
+    import com.senac.estoque.model.Produto;
+    import com.senac.estoque.model.TipoMovimentacao;
+    import com.senac.estoque.repository.MovimentacaoRepository;
+    import com.senac.estoque.repository.ProdutoRepository;
+    import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
+    import java.time.LocalDateTime;
+    import java.util.List;
 
-@Service
-public class MovimentacaoService {
+    @Service
+    public class MovimentacaoService {
 
     private final MovimentacaoRepository movimentacaoRepository;
     private final ProdutoRepository produtoRepository;
@@ -26,19 +26,37 @@ public class MovimentacaoService {
     }
 
     public Movimentacao registrar(Movimentacao mov) {
-        mov.setData(LocalDateTime.now());
-        Produto produto = produtoRepository.findById(mov.getProdutoId()).orElseThrow();
+    mov.setData(LocalDateTime.now());
 
-        if (mov.getTipo() == TipoMovimentacao.SAIDA) {
-            // BUG: nao verifica se ha quantidade suficiente em estoque antes de
-            // dar saida, entao o estoque pode ficar negativo.
-            produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - mov.getQuantidade());
-            produtoRepository.save(produto);
-        }
-        // BUG: falta o "else" para TipoMovimentacao.ENTRADA. Registrar uma entrada
-        // salva a movimentacao no historico, mas NUNCA soma a quantidade de volta
-        // no estoque do produto.
+    Produto produto = produtoRepository.findById(mov.getProdutoId())
+            .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
 
-        return movimentacaoRepository.save(mov);
+    if (mov.getQuantidade() == null || mov.getQuantidade() <= 0) {
+        throw new RuntimeException("A quantidade deve ser maior que zero");
     }
-}
+
+    if (mov.getTipo() == TipoMovimentacao.SAIDA) {
+
+        if (produto.getQuantidadeEstoque() < mov.getQuantidade()) {
+            throw new RuntimeException("Estoque insuficiente para realizar a saída");
+        }
+
+        produto.setQuantidadeEstoque(
+                produto.getQuantidadeEstoque() - mov.getQuantidade()
+        );
+
+    } else if (mov.getTipo() == TipoMovimentacao.ENTRADA) {
+
+        produto.setQuantidadeEstoque(
+                produto.getQuantidadeEstoque() + mov.getQuantidade()
+        );
+
+    } else {
+        throw new RuntimeException("Tipo de movimentação inválido");
+    }
+
+    produtoRepository.save(produto);
+
+    return movimentacaoRepository.save(mov);
+    }
+ }
