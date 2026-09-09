@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   db-estoque:
     image: postgres:16
@@ -12,6 +13,20 @@ services:
       - "5434:5432"
     volumes:
       - estoque_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: backend-estoque
+    restart: unless-stopped
+    depends_on:
+      - db-estoque
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-estoque:5432/estoque
+      SPRING_DATASOURCE_USERNAME: estoque
+      SPRING_DATASOURCE_PASSWORD: estoque123
+      PORT: 8082
+    ports:
+      - "8082:8082"
 
 volumes:
   estoque_data:
